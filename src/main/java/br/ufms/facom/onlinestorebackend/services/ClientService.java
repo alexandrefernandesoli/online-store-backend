@@ -6,6 +6,9 @@ import br.ufms.facom.onlinestorebackend.repositories.ClientRepository;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.util.List;
+import java.util.Optional;
+
 @Service
 public class ClientService {
     private final ClientRepository clientRepository;
@@ -27,5 +30,13 @@ public class ClientService {
         client.setPassword(passwordEncoder.encode(request.getPassword()));
 
         clientRepository.save(client);
+    }
+
+    public Optional<Client> getClientByEmail(String email) {
+        return Optional.ofNullable(clientRepository.findByEmail(email));
+    }
+
+    public List<Client> getClients() {
+        return clientRepository.findAll();
     }
 }

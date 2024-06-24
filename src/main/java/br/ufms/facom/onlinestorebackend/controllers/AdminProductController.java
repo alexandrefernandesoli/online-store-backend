@@ -6,6 +6,8 @@ import br.ufms.facom.onlinestorebackend.dtos.ProductRequestDTO;
 import br.ufms.facom.onlinestorebackend.repositories.ProductRepository;
 import br.ufms.facom.onlinestorebackend.dtos.PaginatedResponseDTO;
 import br.ufms.facom.onlinestorebackend.services.ProductService;
+import io.swagger.v3.oas.annotations.OpenAPIDefinition;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.Resource;
@@ -29,6 +31,8 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.*;
 
+// change doc title on swaggerui
+@Tag(name = "Admin Products")
 @RestController
 @RequestMapping("/admin/products")
 public class AdminProductController {
@@ -136,18 +140,24 @@ public class AdminProductController {
             return ResponseEntity.badRequest().body(result);
         }
 
-        // Get the file name
-        String fileName = file.getOriginalFilename();
+        // compress to webp before saving
+        // https://developers.google.com/speed/webp/docs/cwebp
 
-        // Create a file instance for the target file
+        String originalFileName = file.getOriginalFilename() != null ? file.getOriginalFilename() : "somefile.jpg";
+        String fileName = UUID.randomUUID() + originalFileName.substring(originalFileName.lastIndexOf("."));
+
         File targetFile = new File(uploadDir + File.separator + fileName);
-
-        // Save the file to the target location
         file.transferTo(targetFile);
 
-        // Return a success response with a JSON { url: "http://localhost:8080/products/download/" + fileName }
-        result.put("url", "http://localhost:8080/public/products/download/" + fileName);
+        result.put("url", fileName);
         return ResponseEntity.ok(result);
+    }
+
+    // function that compress image to webp
+    // https://developers.google.com/speed/webp/docs/cwebp
+    private void compressImage(String fileName) {
+        // compress image to webp
+        // https://developers.google.com/speed/webp/docs/cwebp
 
     }
 

@@ -17,7 +17,7 @@ import lombok.Setter;
 @NoArgsConstructor
 public class ProductRequestDTO {
     @NotBlank(message = "Name is mandatory")
-    @Size(min=12, max = 100, message = "Name should not exceed 100 characters")
+    @Size(min=12, max = 100, message = "Name should have at least 12 characters and not exceed 100 characters.")
     private String name;
 
     @NotBlank(message = "Description is mandatory")

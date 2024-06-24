@@ -1,12 +1,11 @@
 package br.ufms.facom.onlinestorebackend.services;
 
-import br.ufms.facom.onlinestorebackend.dtos.OrderCreationDTO;
-import br.ufms.facom.onlinestorebackend.dtos.OrderProductDTO;
-import br.ufms.facom.onlinestorebackend.dtos.OrderProductResponseDTO;
-import br.ufms.facom.onlinestorebackend.dtos.OrderResponseDTO;
+import br.ufms.facom.onlinestorebackend.dtos.*;
+import br.ufms.facom.onlinestorebackend.models.Client;
 import br.ufms.facom.onlinestorebackend.models.Order;
 import br.ufms.facom.onlinestorebackend.models.OrderProduct;
 import br.ufms.facom.onlinestorebackend.models.Product;
+import br.ufms.facom.onlinestorebackend.repositories.ClientRepository;
 import br.ufms.facom.onlinestorebackend.repositories.OrderRepository;
 import br.ufms.facom.onlinestorebackend.repositories.ProductRepository;
 import jakarta.transaction.Transactional;
@@ -15,6 +14,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.security.Principal;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -24,16 +24,19 @@ import java.util.stream.Collectors;
 public class OrderService {
     private final OrderRepository orderRepository;
     private final ProductRepository productRepository;
+    private final ClientRepository clientRepository;
 
-    public OrderService(OrderRepository orderRepository, ProductRepository productRepository) {
+    public OrderService(OrderRepository orderRepository, ProductRepository productRepository, ClientRepository clientRepository) {
         this.orderRepository = orderRepository;
         this.productRepository = productRepository;
+        this.clientRepository = clientRepository;
     }
 
     @Transactional
-    public OrderResponseDTO createOrder(OrderCreationDTO orderCreationDTO) {
+    public OrderResponseDTO createOrderClient(OrderCreationClientDTO orderCreationDTO, Principal principal) {
+        Client client = clientRepository.findByEmail(principal.getName());
         Order order = new Order();
-        order.setClientEmail(orderCreationDTO.getClientEmail());
+        order.setClientEmail(client.getEmail());
 
         BigDecimal total = BigDecimal.ZERO; // Initialize total price to zero
 
@@ -59,6 +62,44 @@ public class OrderService {
         Order savedOrder = orderRepository.save(order);
 
         return convertToOrderResponseDTO(savedOrder);
+    }
+
+    @Transactional
+    public OrderResponseDTO createOrder(OrderCreationDTO orderCreationDTO) {
+        Order order = new Order();
+        order.setClientEmail(orderCreationDTO.getClientEmail());
+
+        BigDecimal total; // Initialize total price to zero
+        total = BigDecimal.ZERO;
+
+        Set<OrderProduct> orderProducts = new HashSet<>();
+        for (OrderProductDTO prod : orderCreationDTO.getProducts()) {
+            Product product = productRepository.findById(prod.getProductId())
+                    .orElseThrow(() -> new ObjectNotFoundException(prod.getProductId(), "Product not found: " + prod.getProductId()));
+
+            BigDecimal price = product.getPrice(); // Default to regular price
+            if (product.getSale() != null && product.getSale().compareTo(BigDecimal.ZERO) > 0 && product.getSale().compareTo(product.getPrice()) < 0) {
+                price = product.getSale(); // Use sale price if it exists and is less than regular price
+            }
+
+            BigDecimal productTotal = price.multiply(BigDecimal.valueOf(prod.getQuantity())); // Calculate total for this product
+            total = total.add(productTotal); // Add product total to order total
+
+            OrderProduct orderProduct = new OrderProduct(order, product, prod.getQuantity());
+            orderProducts.add(orderProduct);
+        }
+
+        order.setOrderProducts(orderProducts);
+        order.setTotal(total); // Set total price for the order
+        Order savedOrder = orderRepository.save(order);
+
+        return convertToOrderResponseDTO(savedOrder);
+    }
+
+    public List<OrderResponseDTO> listOrdersByClientEmail(String email) {
+        return orderRepository.findByClientEmail(email).stream()
+                .map(this::convertToOrderResponseDTO)
+                .collect(Collectors.toList());
     }
 
     public List<OrderResponseDTO> listOrders() {

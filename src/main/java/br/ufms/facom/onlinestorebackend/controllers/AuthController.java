@@ -3,6 +3,7 @@ package br.ufms.facom.onlinestorebackend.controllers;
 import br.ufms.facom.onlinestorebackend.dtos.JWTAuthenticationResponseDTO;
 import br.ufms.facom.onlinestorebackend.dtos.LoginRequestDTO;
 import br.ufms.facom.onlinestorebackend.dtos.UserInfoDTO;
+import br.ufms.facom.onlinestorebackend.models.Client;
 import br.ufms.facom.onlinestorebackend.models.User;
 import br.ufms.facom.onlinestorebackend.services.ClientService;
 import br.ufms.facom.onlinestorebackend.services.JWTService;
@@ -24,13 +25,14 @@ public class AuthController {
     private final JWTService jwtService;
     private final AuthenticationManager authenticationManager;
     private final UserService userService;
+    private final ClientService clientService;
 
-    public AuthController(JWTService jwtService, AuthenticationManager authenticationManager, UserService userService) {
+    public AuthController(JWTService jwtService, AuthenticationManager authenticationManager, UserService userService, ClientService clientService) {
         this.jwtService = jwtService;
         this.authenticationManager = authenticationManager;
         this.userService = userService;
+        this.clientService = clientService;
     }
-
 
     @PostMapping("/login")
     public ResponseEntity<?> authenticateUser(@RequestBody LoginRequestDTO loginRequest) {
@@ -50,9 +52,19 @@ public class AuthController {
     public ResponseEntity<?> getAuthInfo(Principal principal) {
         String username = principal.getName();
         Optional<User> maybeUser = userService.getUserByUsername(username);
-
+        Optional<Client> client = Optional.empty();
         if (maybeUser.isEmpty()) {
+            client = clientService.getClientByEmail(username);
+        }
+        
+        if (maybeUser.isEmpty() && client.isEmpty()) {
             throw new UsernameNotFoundException("User not found");
+        }
+
+        if (client.isPresent()) {
+            Client c = client.get();
+            UserInfoDTO userInfo = new UserInfoDTO(c.getFirstName() + " " + c.getLastName(), c.getEmail(), "CLIENT");
+            return ResponseEntity.ok(userInfo);
         }
 
         User user = maybeUser.get();
