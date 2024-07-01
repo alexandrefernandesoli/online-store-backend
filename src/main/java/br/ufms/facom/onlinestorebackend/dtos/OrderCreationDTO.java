@@ -12,9 +12,8 @@ import java.util.Set;
 @Getter
 @Setter
 public class OrderCreationDTO {
-    @Email(message = "Invalid email format")
-    @NotNull(message = "Client email cannot be null")
-    private String clientEmail;
+    @NotNull(message = "Client cannot be null")
+    private Long clientId;
 
     @NotEmpty(message = "Order must contain at least one product")
     @Valid

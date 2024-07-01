@@ -1,10 +1,7 @@
 package br.ufms.facom.onlinestorebackend.services;
 
 import br.ufms.facom.onlinestorebackend.dtos.*;
-import br.ufms.facom.onlinestorebackend.models.Client;
-import br.ufms.facom.onlinestorebackend.models.Order;
-import br.ufms.facom.onlinestorebackend.models.OrderProduct;
-import br.ufms.facom.onlinestorebackend.models.Product;
+import br.ufms.facom.onlinestorebackend.models.*;
 import br.ufms.facom.onlinestorebackend.repositories.ClientRepository;
 import br.ufms.facom.onlinestorebackend.repositories.OrderRepository;
 import br.ufms.facom.onlinestorebackend.repositories.ProductRepository;
@@ -17,6 +14,7 @@ import java.math.BigDecimal;
 import java.security.Principal;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -36,29 +34,11 @@ public class OrderService {
     public OrderResponseDTO createOrderClient(OrderCreationClientDTO orderCreationDTO, Principal principal) {
         Client client = clientRepository.findByEmail(principal.getName());
         Order order = new Order();
-        order.setClientEmail(client.getEmail());
+        order.setClient(client);
 
-        BigDecimal total = BigDecimal.ZERO; // Initialize total price to zero
+        BigDecimal total = mapProductsToOrder(orderCreationDTO.getProducts(), order);
 
-        Set<OrderProduct> orderProducts = new HashSet<>();
-        for (OrderProductDTO prod : orderCreationDTO.getProducts()) {
-            Product product = productRepository.findById(prod.getProductId())
-                    .orElseThrow(() -> new ObjectNotFoundException(prod.getProductId(), "Product not found: " + prod.getProductId()));
-
-            BigDecimal price = product.getPrice(); // Default to regular price
-            if (product.getSale() != null && product.getSale().compareTo(BigDecimal.ZERO) > 0 && product.getSale().compareTo(product.getPrice()) < 0) {
-                price = product.getSale(); // Use sale price if it exists and is less than regular price
-            }
-
-            BigDecimal productTotal = price.multiply(BigDecimal.valueOf(prod.getQuantity())); // Calculate total for this product
-            total = total.add(productTotal); // Add product total to order total
-
-            OrderProduct orderProduct = new OrderProduct(order, product, prod.getQuantity());
-            orderProducts.add(orderProduct);
-        }
-
-        order.setOrderProducts(orderProducts);
-        order.setTotal(total); // Set total price for the order
+        order.setTotal(total);
         Order savedOrder = orderRepository.save(order);
 
         return convertToOrderResponseDTO(savedOrder);
@@ -67,13 +47,25 @@ public class OrderService {
     @Transactional
     public OrderResponseDTO createOrder(OrderCreationDTO orderCreationDTO) {
         Order order = new Order();
-        order.setClientEmail(orderCreationDTO.getClientEmail());
+        Optional<Client> client = clientRepository.findById(orderCreationDTO.getClientId());
 
-        BigDecimal total; // Initialize total price to zero
-        total = BigDecimal.ZERO;
+        if (client.isEmpty()) {
+            throw new ObjectNotFoundException(orderCreationDTO.getClientId(), "Client not found: " + orderCreationDTO.getClientId());
+        }
 
+        order.setClient(client.get());
+
+        BigDecimal total = mapProductsToOrder(orderCreationDTO.getProducts(), order);
+
+        order.setTotal(total);
+        Order savedOrder = orderRepository.save(order);
+
+        return convertToOrderResponseDTO(savedOrder);
+    }
+
+    private BigDecimal mapProductsToOrder(Set<OrderProductDTO> products, Order order) {
         Set<OrderProduct> orderProducts = new HashSet<>();
-        for (OrderProductDTO prod : orderCreationDTO.getProducts()) {
+        for (OrderProductDTO prod : products) {
             Product product = productRepository.findById(prod.getProductId())
                     .orElseThrow(() -> new ObjectNotFoundException(prod.getProductId(), "Product not found: " + prod.getProductId()));
 
@@ -82,22 +74,18 @@ public class OrderService {
                 price = product.getSale(); // Use sale price if it exists and is less than regular price
             }
 
-            BigDecimal productTotal = price.multiply(BigDecimal.valueOf(prod.getQuantity())); // Calculate total for this product
-            total = total.add(productTotal); // Add product total to order total
-
-            OrderProduct orderProduct = new OrderProduct(order, product, prod.getQuantity());
+            OrderProduct orderProduct = new OrderProduct(order, product, prod.getQuantity(), price);
             orderProducts.add(orderProduct);
         }
-
         order.setOrderProducts(orderProducts);
-        order.setTotal(total); // Set total price for the order
-        Order savedOrder = orderRepository.save(order);
 
-        return convertToOrderResponseDTO(savedOrder);
+        return orderProducts.stream()
+                .map(orderProduct -> orderProduct.getPrice().multiply(BigDecimal.valueOf(orderProduct.getQuantity())))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 
-    public List<OrderResponseDTO> listOrdersByClientEmail(String email) {
-        return orderRepository.findByClientEmail(email).stream()
+    public List<OrderResponseDTO> listOrdersByClient(Long clientId) {
+        return orderRepository.findByClientId(clientId).stream()
                 .map(this::convertToOrderResponseDTO)
                 .collect(Collectors.toList());
     }
@@ -111,10 +99,11 @@ public class OrderService {
     private OrderResponseDTO convertToOrderResponseDTO(Order order) {
         OrderResponseDTO dto = new OrderResponseDTO();
         dto.setId(order.getId());
-        dto.setClientEmail(order.getClientEmail());
+        dto.setClient(new ClientResponseDTO(order.getClient()));
         dto.setCreatedAt(order.getCreatedAt());
         dto.setUpdatedAt(order.getUpdatedAt());
         dto.setTotal(order.getTotal());
+        dto.setStatus(order.getStatus());
 
         Set<OrderProductResponseDTO> orderProductDTOs = order.getOrderProducts().stream()
                 .map(this::convertToOrderProductResponseDTO)
@@ -127,11 +116,27 @@ public class OrderService {
     private OrderProductResponseDTO convertToOrderProductResponseDTO(OrderProduct orderProduct) {
         OrderProductResponseDTO dto = new OrderProductResponseDTO();
         dto.setId(orderProduct.getProduct().getId());
-        dto.setName(orderProduct.getProduct().getName()); // Assuming Product has a name field
-        dto.setSale(orderProduct.getProduct().getSale());
-        dto.setPrice(orderProduct.getProduct().getPrice());
+        dto.setName(orderProduct.getProduct().getName());
+        dto.setPrice(orderProduct.getPrice());
         dto.setQuantity(orderProduct.getQuantity());
 
         return dto;
+    }
+
+    public OrderResponseDTO getOrder(Long id) {
+        Order order = orderRepository.findById(id)
+                .orElseThrow(() -> new ObjectNotFoundException(id, "Order not found: " + id));
+
+        return convertToOrderResponseDTO(order);
+    }
+
+    public void updateOrderStatus(Long id, Integer status) {
+        Order order = orderRepository.findById(id)
+                .orElseThrow(() -> new ObjectNotFoundException(id, "Order not found: " + id));
+
+        OrderStatus newStatus = OrderStatus.fromValue(status);
+
+        order.setStatus(newStatus);
+        Order savedOrder = orderRepository.save(order);
     }
 }

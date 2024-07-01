@@ -5,7 +5,7 @@ import jakarta.validation.constraints.NotEmpty;
 import lombok.Getter;
 import lombok.Setter;
 
-import java.util.List;
+import java.util.Set;
 
 @Getter
 @Setter
@@ -13,5 +13,5 @@ public class OrderCreationClientDTO {
 
     @NotEmpty(message = "Order must contain at least one product")
     @Valid
-    private List<OrderProductDTO> products;
+    private Set<OrderProductDTO> products;
 }

@@ -24,14 +24,17 @@ public class Order {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "client_email", nullable = false)
-    private String clientEmail;
+    @ManyToOne(fetch = FetchType.LAZY)
+    private Client client;
 
     @Column(nullable = false, precision = 14, scale = 2)
     private BigDecimal total = BigDecimal.ZERO;
 
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
     private Set<OrderProduct> orderProducts = new HashSet<>();
+
+    @Enumerated(EnumType.ORDINAL)
+    private OrderStatus status = OrderStatus.PENDING;
 
     @CreatedDate
     @Column(name = "created_at", nullable = false, updatable = false)
@@ -40,4 +43,8 @@ public class Order {
     @LastModifiedDate
     @Column(name = "updated_at")
     private Date updatedAt;
+
+    public Integer getStatus() {
+        return status.ordinal();
+    }
 }

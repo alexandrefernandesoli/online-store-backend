@@ -73,12 +73,6 @@ public class AdminProductController {
         return response;
     }
 
-//    @GetMapping("/{id}")
-//    public ResponseEntity<ProductResponseDTO> get(@PathVariable("id") Long id) {
-//        ProductResponseDTO product = productService.getProductById(id);
-//        return ResponseEntity.ok(product);
-//    }
-
     @PostMapping
     public ResponseEntity<?> create(@RequestBody @Valid ProductRequestDTO productRequestDTO, BindingResult bindingResult) {
         ResponseEntity<?> errors = getResponseEntity(bindingResult);
@@ -140,9 +134,6 @@ public class AdminProductController {
             return ResponseEntity.badRequest().body(result);
         }
 
-        // compress to webp before saving
-        // https://developers.google.com/speed/webp/docs/cwebp
-
         String originalFileName = file.getOriginalFilename() != null ? file.getOriginalFilename() : "somefile.jpg";
         String fileName = UUID.randomUUID() + originalFileName.substring(originalFileName.lastIndexOf("."));
 
@@ -151,27 +142,6 @@ public class AdminProductController {
 
         result.put("url", fileName);
         return ResponseEntity.ok(result);
-    }
-
-    // function that compress image to webp
-    // https://developers.google.com/speed/webp/docs/cwebp
-    private void compressImage(String fileName) {
-        // compress image to webp
-        // https://developers.google.com/speed/webp/docs/cwebp
-
-    }
-
-
-    private String formatDate(long timestamp) {
-        LocalDateTime dateTime = LocalDateTime.ofInstant(Instant.ofEpochMilli(timestamp), ZoneId.systemDefault());
-        return dateTime.toString();
-    }
-
-    private String formatFileSize(long size) {
-        if (size <= 0) return "0 B";
-        final String[] units = new String[]{"B", "KB", "MB", "GB", "TB"};
-        int digitGroups = (int) (Math.log10(size) / Math.log10(1024));
-        return String.format("%.1f %s", size / Math.pow(1024, digitGroups), units[digitGroups]);
     }
 
     private boolean isImageFile(MultipartFile file) {

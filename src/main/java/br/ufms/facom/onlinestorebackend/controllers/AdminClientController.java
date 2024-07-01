@@ -1,5 +1,6 @@
 package br.ufms.facom.onlinestorebackend.controllers;
 
+import br.ufms.facom.onlinestorebackend.dtos.ClientResponseDTO;
 import br.ufms.facom.onlinestorebackend.models.Client;
 import br.ufms.facom.onlinestorebackend.services.ClientService;
 import org.springframework.http.ResponseEntity;
@@ -19,9 +20,9 @@ public class AdminClientController {
     }
 
     @GetMapping
-    public ResponseEntity<List<Client>> getClients() {
+    public ResponseEntity<List<ClientResponseDTO>> getClients() {
         List<Client> clientList = clientService.getClients();
 
-        return ResponseEntity.ok(clientList);
+        return ResponseEntity.ok(clientList.stream().map(ClientResponseDTO::new).toList());
     }
 }

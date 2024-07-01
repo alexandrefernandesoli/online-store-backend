@@ -32,6 +32,10 @@ public class ClientService {
         clientRepository.save(client);
     }
 
+    public Optional<Client> getClientById(Long id) {
+        return clientRepository.findById(id);
+    }
+
     public Optional<Client> getClientByEmail(String email) {
         return Optional.ofNullable(clientRepository.findByEmail(email));
     }

@@ -11,9 +11,10 @@ import java.util.Set;
 @Setter
 public class OrderResponseDTO {
     private Long id;
-    private String clientEmail;
+    private ClientResponseDTO client;
     private Set<OrderProductResponseDTO> products;
     private BigDecimal total;
+    private Integer status;
     private Date createdAt;
     private Date updatedAt;
 }
